@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Injects the environment variable so the app can use process.env.API_KEY as required
+    // This allows the code to use 'process.env.API_KEY' directly as requested.
+    // Vite replaces this string at build time with the value from the environment.
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
@@ -13,8 +14,5 @@ export default defineConfig({
     rollupOptions: {
       input: './index.html'
     }
-  },
-  server: {
-    port: 3000
   }
 });
