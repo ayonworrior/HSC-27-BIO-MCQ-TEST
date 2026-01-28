@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Chapter, MCQ, CQ } from "../types";
 
@@ -7,6 +6,7 @@ export const generateQuestions = async (
   mcqCount: number,
   isHardMode: boolean
 ): Promise<{ mcqs: MCQ[]; cqs: CQ[] }> => {
+  // Initialize AI inside the function for better environment variable reliability
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const mcqSchema = {
@@ -27,7 +27,7 @@ export const generateQuestions = async (
           required: ["A", "B", "C", "D"]
         },
         correctAnswer: { type: Type.STRING, description: "Must be exactly 'A', 'B', 'C', or 'D'" },
-        difficulty: { type: Type.STRING, description: "Must be exactly 'Easy', 'Medium', or 'Hard' (Case-sensitive)" },
+        difficulty: { type: Type.STRING, description: "Must be exactly 'Easy', 'Medium', or 'Hard'" },
         explanation: { type: Type.STRING },
         topicTag: { type: Type.STRING },
         estimatedTime: { type: Type.STRING },
@@ -75,12 +75,11 @@ export const generateQuestions = async (
   Source: Abul Hasan's "Biology 1st Paper".
   
   IMPORTANT RULES:
-  1. All Bengali text must use standard academic terminology.
+  1. All Bengali text must use standard academic terminology from the book.
   2. Numbers in JSON MUST be in English digits (0-9).
-  3. difficulty MUST be exactly "Easy", "Medium", or "Hard".
-  4. Generate exactly ${mcqCount} MCQs and 2 CQs for Chapter ${chapter.id}: ${chapter.name}.
-  5. If isHardMode is true, set 80% of MCQs as "Hard".
-  6. Return ONLY valid JSON. Avoid markdown blocks if possible, but handle them if necessary.`;
+  3. Generate exactly ${mcqCount} MCQs and 2 Creative Questions (CQs) for Chapter ${chapter.id}: ${chapter.name}.
+  4. If isHardMode is true, ensure questions require high cognitive depth (Application/Higher Order).
+  5. Return ONLY valid JSON.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -100,29 +99,16 @@ export const generateQuestions = async (
       }
     });
 
-    if (!response.text) throw new Error("No response from AI");
+    const text = response.text;
+    if (!text) throw new Error("No response from AI");
     
-    // Clean markdown and normalize Bengali digits to English
-    let text = response.text.trim();
-    text = text.replace(/^```(?:json)?\s*|\s*```$/g, "");
-    const sanitizedText = text.replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
-    
+    // Normalize Bengali digits to English to avoid JSON parse errors if any sneak in
+    const sanitizedText = text.trim().replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
     const parsed = JSON.parse(sanitizedText);
     
-    // Final data normalization
-    parsed.mcqs = (parsed.mcqs || []).map((m: any) => ({
-      ...m,
-      difficulty: m.difficulty ? m.difficulty.charAt(0).toUpperCase() + m.difficulty.slice(1).toLowerCase() : "Easy"
-    }));
-
-    parsed.cqs = (parsed.cqs || []).map((cq: any) => ({
-      ...cq,
-      marks: Number(cq.marks || 10)
-    }));
-
     return parsed;
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini Generation Error:", error);
     throw error;
   }
 };
